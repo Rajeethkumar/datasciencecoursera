@@ -1,0 +1,115 @@
+---
+title: "Practical Machine Learning"
+author: "Rajeeth"
+date: "April 7, 2018"
+output: html_document
+---
+### Synopsis     
+The objective and goal of this project is to predict the manner in which they performed the exercise and machine learning classification of accelerometers data on the belt, forearm, arm, and dumbell of 6 participants.In training data "classe" is the outcome variable in the training set using predictor variables to predict 20 different test cases.The data for this project come from this source is: http://groupware.les.inf.puc-rio.br/har.
+
+The "classe" variable which classifies the correct and incorrect outcomes of A, B, C, D, and E categories. Coursera project writeup describes the model cross validation and expected out of sample error rate. Models applied successfully to predict all 20 different test cases on the Coursera website.
+
+This project work partially submitted to the Coursera for the course "Practical Machine Learning" by Jeff Leek, PhD, Professor at Johns Hopkins University, Bloomberg School of Public Health.  
+
+Load Require library set the seed  
+
+```{r}
+library(e1071)
+library(rattle)
+library(rpart)
+library(randomForest)
+library(caret)
+set.seed(9999)
+```
+
+Load The data from downloaded CSV files  
+
+```{r}
+data_train <-  read.csv("C:/Users/Rajeethkumar/Desktop/Data/Coursera/Pml/pml-training.csv")
+data_test <- read.csv("C:/Users/Rajeethkumar/Desktop/Data/Coursera/Pml/pml-testing.csv")
+```
+
+## Feature Engineering
+We have seen the training data and testing data contains lot of NA values and timestamp values,at this stage remove columns which contains NA and columns that contains users information and columns gives timetamp values. We concentrate on test data feature because train and test data columns can cause integrity problem.
+
+```{r}
+features <- names(data_test[,colSums(is.na(data_test)) == 0])[8:59]
+data_train <- data_train[,c(features,'classe')]
+data_test <- data_test[,c(features,"problem_id")]
+print(dim(data_train))
+print(dim(data_test))
+```
+
+## Train and Validation set preparation    
+
+We use 60% data to fit the model and use other set to evaluate the model.
+
+```{r}
+inTrain <- createDataPartition(data_train$classe, p=0.6, list=FALSE)
+training <- data_train[inTrain,]
+testing <- data_train[-inTrain,]
+
+dim(training)
+dim(testing)
+```
+
+### Build Decision Tree classifier and look at the accuray and ploting
+
+```{r}
+mod_DT <- rpart(classe ~ ., data = training, method="class",  control = rpart.control(method = "cv", number = 10))
+prediction1 <- predict(mod_DT, testing, type="class" )
+
+confusionMatrix(prediction1, testing$classe)
+fancyRpartPlot(mod_DT)
+```
+
+This Decision tree gives 0.7383,which is pretty  much enough.   
+
+### Build Random Forest Alogritm and look at the accuray and ploting   
+
+```{r}
+mod_RF <- randomForest(classe ~ ., data = training, method = "rf", importance = T, 
+									trControl = trainControl(method = "cv", classProbs=TRUE,
+									savePredictions=TRUE,allowParallel=TRUE, number = 10))
+									
+prediction2 <- predict(mod_RF,testing,type = "class")
+confusionMatrix(prediction2 , testing$classe)
+plot(mod_RF)
+```
+
+This Random Forest gives 0.9934,which is pretty  much enough.   
+
+### Build Gradient boosting classifier and have a look at the accuray and ploting   
+
+```{r}
+mod_GBM <- train(classe ~ ., method = "gbm", data = training,
+                    verbose = F,
+                    trControl = trainControl(method = "cv", number = 10))
+
+
+preditction3 <- predict(mod_GBM,testing)
+confusionMatrix(preditction3 , testing$classe)
+print(mod_GBM)
+
+plot(mod_GBM)
+```
+
+This Graddient boosting gives 0.9635 that is pretty fine   
+
+##### Lets look at the prediction output for test file data   
+
+```{r}
+pred_DT <- predict(mod_DT, data_test)
+pred_DT
+```
+
+```{r}
+pred_RF <- predict(mod_RF, data_test)
+pred_RF
+```
+
+```{r}
+pred_GBM <- predict(mod_GBM, data_test)
+pred_GBM
+```
+
